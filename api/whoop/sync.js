@@ -18,9 +18,9 @@ async function syncUser(userId) {
   if (!token) return { error: "WHOOP not connected" };
 
   const [rec, slp, cyc] = await Promise.all([
-    whoopGet("/v2/recovery?limit=25", token).catch(() => ({ records: [] })),
-    whoopGet("/v2/activity/sleep?limit=25", token).catch(() => ({ records: [] })),
-    whoopGet("/v2/cycle?limit=25", token).catch(() => ({ records: [] })),
+    whoopGet("/developer/v2/recovery?limit=25", token).catch(() => ({ records: [] })),
+    whoopGet("/developer/v2/activity/sleep?limit=25", token).catch(() => ({ records: [] })),
+    whoopGet("/developer/v2/cycle?limit=25", token).catch(() => ({ records: [] })),
   ]);
 
   const byDate = {};
@@ -35,6 +35,8 @@ async function syncUser(userId) {
   }
 
   for (const r of rec.records || []) {
+    // Only trust scored recoveries; skip pending/unscorable mornings.
+    if (r.score_state && r.score_state !== "SCORED") continue;
     const d = cycleDate[r.cycle_id] || dateOf(r.created_at || r.updated_at);
     if (!d) continue;
     const s = r.score || {};
