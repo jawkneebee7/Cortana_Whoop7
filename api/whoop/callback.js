@@ -27,7 +27,7 @@ export default async function handler(req, res) {
     // Capture the WHOOP user id so webhooks can be mapped back to this account.
     let whoopUserId;
     try {
-      const p = await fetch(`${WHOOP_API}/v2/user/profile/basic`, { headers: { authorization: `Bearer ${t.access_token}` } });
+      const p = await fetch(`${WHOOP_API}/developer/v2/user/profile/basic`, { headers: { authorization: `Bearer ${t.access_token}` } });
       if (p.ok) { const pj = await p.json(); whoopUserId = pj.user_id; }
     } catch { /* non-fatal */ }
 
