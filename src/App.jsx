@@ -284,6 +284,138 @@ function Cortana({ recovery, size = 84, speaking = false }) {
   );
 }
 
+/* ================================================================== */
+/*  Ambient glyph layer — neon sigils and aphorisms that draw          */
+/*  themselves in the dark, then dissolve.                             */
+/* ================================================================== */
+const GLYPH_QUOTES = [
+  "Amor fati.",
+  "What stands in the way becomes the way.",
+  "We suffer more in imagination than in reality.",
+  "Become who you are.",
+  "He who has a why can bear almost any how.",
+  "Discipline is a form of self-love.",
+  "Passion, tempered, becomes power.",
+  "Peace is earned each night.",
+  "Let the fire serve you.",
+  "The wound is where the light enters.",
+];
+
+const GLYPH_SHAPES = [
+  () => <g><circle cx="50" cy="50" r="30" /><circle cx="40" cy="42" r="2.5" /><circle cx="60" cy="42" r="2.5" /><path d="M38 60 Q50 70 62 60" /></g>,
+  () => <path d="M50 75 C20 55 25 28 45 33 C49 34 50 38 50 40 C50 38 51 34 55 33 C75 28 80 55 50 75 Z" />,
+  () => <text x="50" y="62" textAnchor="middle" fontSize="34" fontFamily="'JetBrains Mono',monospace">777</text>,
+  () => <g><polygon points="50,20 78,70 22,70" /><circle cx="50" cy="53" r="7" /></g>,
+  () => <g><polygon points="50,18 76,63 24,63" /><polygon points="50,82 24,37 76,37" /></g>,
+  () => <g><circle cx="50" cy="50" r="32" /><polygon points="50,26 71,62 29,62" /><circle cx="50" cy="50" r="5" /></g>,
+  () => <path d="M50 50 m0 -2 a2 2 0 1 1 -2 2 a4 4 0 1 1 4 -4 a8 8 0 1 1 -8 8 a14 14 0 1 1 14 -14 a22 22 0 1 1 -22 22 a30 30 0 1 1 30 -30" />,
+  () => <g><ellipse cx="50" cy="50" rx="30" ry="17" /><circle cx="50" cy="50" r="7" /><circle cx="50" cy="50" r="2" /></g>,
+  () => <path d="M56 18 L34 55 L48 55 L42 82 L68 42 L52 42 Z" />,
+  () => <path d="M30 50 C30 38 44 38 50 50 C56 62 70 62 70 50 C70 38 56 38 50 50 C44 62 30 62 30 50 Z" />,
+];
+
+function AmbientGlyphs() {
+  const [items, setItems] = useState([]);
+  useEffect(() => {
+    let alive = true;
+    const palette = [C.ember, C.brass, C.steel, C.sage, C.plum];
+    const spawn = () => {
+      if (!alive) return;
+      setItems((cur) => {
+        if (cur.length >= 3) return cur;
+        const id = uid();
+        const life = 9000 + Math.random() * 5000;
+        const item = {
+          id,
+          isQuote: Math.random() < 0.3,
+          quote: GLYPH_QUOTES[Math.floor(Math.random() * GLYPH_QUOTES.length)],
+          shape: Math.floor(Math.random() * GLYPH_SHAPES.length),
+          x: 4 + Math.random() * 82,
+          y: 8 + Math.random() * 72,
+          size: 70 + Math.random() * 90,
+          hue: palette[Math.floor(Math.random() * palette.length)],
+          life,
+        };
+        setTimeout(() => setItems((c) => c.filter((g) => g.id !== id)), life);
+        return [...cur, item];
+      });
+    };
+    spawn();
+    const iv = setInterval(spawn, 7000);
+    return () => { alive = false; clearInterval(iv); };
+  }, []);
+  return (
+    <div className="ambient" aria-hidden="true">
+      {items.map((g) => g.isQuote ? (
+        <div key={g.id} className="amb-quote" style={{ left: g.x + "%", top: g.y + "%", color: g.hue, animationDuration: g.life + "ms" }}>{g.quote}</div>
+      ) : (
+        <svg key={g.id} className="amb-glyph" viewBox="0 0 100 100" style={{ left: g.x + "%", top: g.y + "%", width: g.size, height: g.size, stroke: g.hue, color: g.hue, animationDuration: g.life + "ms" }}>
+          {GLYPH_SHAPES[g.shape]()}
+        </svg>
+      ))}
+    </div>
+  );
+}
+
+/* ================================================================== */
+/*  Quick log — one-tap entry for the things you do every day.        */
+/*  Chips are your own most-used labels, topped up with sane defaults. */
+/* ================================================================== */
+const QUICK_DEFAULTS = [
+  { label: "Coffee", category: "caffeine" },
+  { label: "Alcohol", category: "consumption" },
+  { label: "Strength", category: "training" },
+  { label: "BJJ", category: "training" },
+  { label: "Meditation", category: "practice" },
+  { label: "Breathwork", category: "practice" },
+  { label: "Cold shower", category: "practice" },
+];
+
+function QuickLog({ days, setDays }) {
+  const [flash, setFlash] = useState("");
+  const chips = useMemo(() => {
+    const freq = {};
+    Object.values(days || {}).forEach((d) => (d.logs || []).forEach((l) => {
+      const k = l.label + "|" + l.category;
+      freq[k] = (freq[k] || 0) + 1;
+    }));
+    const used = Object.entries(freq).sort((a, b) => b[1] - a[1]).slice(0, 7)
+      .map(([k]) => ({ label: k.split("|")[0], category: k.split("|")[1] }));
+    const seen = new Set(used.map((c) => c.label.toLowerCase()));
+    const merged = [...used];
+    for (const d of QUICK_DEFAULTS) if (!seen.has(d.label.toLowerCase()) && merged.length < 9) merged.push(d);
+    return merged;
+  }, [days]);
+
+  const tap = (c) => {
+    const t = new Date();
+    const time = String(t.getHours()).padStart(2, "0") + ":" + String(t.getMinutes()).padStart(2, "0");
+    const entry = { id: uid(), time, category: c.category, label: c.label, detail: "" };
+    const next = { ...days };
+    const d = today();
+    next[d] = { ...(next[d] || {}), metrics: next[d]?.metrics || {}, logs: [...(next[d]?.logs || []), entry].sort((a, b) => a.time.localeCompare(b.time)) };
+    setDays(next);
+    setFlash(c.label);
+    setTimeout(() => setFlash(""), 1500);
+  };
+
+  return (
+    <div className="quicklog">
+      <span className="quicklog-title">Quick log</span>
+      {chips.map((c) => {
+        const cc = CATEGORIES[c.category] || CATEGORIES.context;
+        const Icon = cc.icon;
+        return (
+          <button key={c.label + c.category} className="qchip" onClick={() => tap(c)}>
+            <Icon size={12} color={cc.color} /> {c.label}
+          </button>
+        );
+      })}
+      {flash && <span className="qflash">✓ {flash} logged</span>}
+    </div>
+  );
+}
+
 /* ring + sparkline -------------------------------------------------- */
 function Ring({ value, size = 230 }) {
   const stroke = 9, rad = (size - stroke) / 2, circ = 2 * Math.PI * rad;
@@ -314,10 +446,20 @@ function Spark({ data, color }) {
 }
 function Vital({ mkey, value, series }) {
   const m = METRICS[mkey]; const Icon = m.icon;
+  let delta = null;
+  if (series && series.length >= 4 && value != null) {
+    const base = mean(series.slice(0, -1));
+    if (base != null) delta = value - base;
+  }
+  const meaningful = delta != null && Math.abs(delta) >= 0.05;
+  const good = !meaningful ? null : m.hi === "up" ? delta > 0 : m.hi === "down" ? delta < 0 : null;
+  const dcol = good == null ? C.ash : good ? C.sage : C.ember;
   return (
     <div className="vital">
       <div className="vital-head"><Icon size={13} color={m.color} /><span className="vital-label">{m.label}</span></div>
-      <div className="vital-val">{value == null ? "—" : value}<span className="vital-unit">{m.unit}</span></div>
+      <div className="vital-val">{value == null ? "—" : value}<span className="vital-unit">{m.unit}</span>
+        {meaningful && <span className="vital-delta" style={{ color: dcol }} title="vs your recent average">{delta > 0 ? "▲" : "▼"}{Math.abs(delta) < 10 ? Math.abs(delta).toFixed(1) : Math.round(Math.abs(delta))}</span>}
+      </div>
       <Spark data={series} color={m.color} />
     </div>
   );
@@ -326,9 +468,13 @@ function Vital({ mkey, value, series }) {
 /* ================================================================== */
 /*  Today                                                              */
 /* ================================================================== */
-function Today({ days, settings, setSettings }) {
+function Today({ days, setDays, settings, setSettings }) {
   const dts = useMemo(() => Object.keys(days).sort(), [days]);
-  const last = dts[dts.length - 1];
+  const withData = useMemo(() => dts.filter((d) => {
+    const mm = days[d]?.metrics || {};
+    return Object.values(mm).some((v) => v != null && v !== "");
+  }), [dts, days]);
+  const last = withData[withData.length - 1] || dts[dts.length - 1];
   const day = days[last];
   const recent = dts.slice(-14);
   const seriesOf = (k) => recent.map((d) => days[d]?.metrics[k]).filter((v) => v != null);
@@ -384,6 +530,8 @@ function Today({ days, settings, setSettings }) {
           <Vital key={k} mkey={k} value={m[k]} series={seriesOf(k)} />
         ))}
       </div>
+
+      {setDays && <QuickLog days={days} setDays={setDays} />}
 
       <div className="panel cortana-panel">
         <div className="cortana-top">
@@ -455,6 +603,7 @@ function Log({ days, setDays }) {
         <input className="input date-in" type="date" value={date} max={today()} onChange={(e) => setDate(e.target.value)} />
         <button className="btn-ghost" onClick={() => setDate(addDays(date, 1))} disabled={date >= today()}>›</button>
       </div>
+      <QuickLog days={days} setDays={setDays} />
       <div className="log-grid">
         <div className="panel">
           <div className="panel-title" style={{ marginBottom: 12 }}><Heart size={14} color={C.sage} /> Daily vitals</div>
@@ -812,6 +961,7 @@ function MainApp() {
   return (
     <div className="app">
       <style>{CSS}</style>
+      <AmbientGlyphs />
       <header className="topbar">
         <div className="brand"><span className="brand-mark" /><div><div className="brand-name">Jonathan David Brooks</div><div className="brand-sub">a homebase for the body, mind, and spirit</div></div></div>
         <nav className="nav">
@@ -825,7 +975,7 @@ function MainApp() {
         <div className="demo-bar"><span>Sample data — 42 days of realistic readings, mood, and journal entries so Cortana has something to work with. Clear it when your band arrives.</span><button className="btn-link" onClick={clearDemo}>Start fresh ›</button></div>
       )}
       <main className="main">
-        {tab === "today" && <Today days={days} settings={settings} setSettings={setSettings} />}
+        {tab === "today" && <Today days={days} setDays={setDays} settings={settings} setSettings={setSettings} />}
         {tab === "log" && <Log days={days} setDays={setDays} />}
         {tab === "journal" && <Journal days={days} setDays={setDays} settings={settings} />}
         {tab === "exp" && <Experiments days={days} experiments={experiments} setExperiments={setExperiments} />}
@@ -847,12 +997,6 @@ function SignIn() {
   const [sent, setSent] = useState(false);
   const [err, setErr] = useState("");
 
-  // Debug: show what the app is actually reading at runtime
-  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || "";
-  const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-  const urlOk = supabaseUrl.startsWith("https://") && supabaseUrl.includes(".supabase.co");
-  const keyOk = supabaseKey.startsWith("eyJ") && supabaseKey.length > 100;
-
   const send = async () => {
     setErr("");
     const { error } = await supabase.auth.signInWithOtp({ email: email.trim(), options: { emailRedirectTo: window.location.origin } });
@@ -864,15 +1008,6 @@ function SignIn() {
         <Cortana recovery={70} size={100} />
         <div className="brand-name" style={{ fontSize: 22, marginTop: 18 }}>Jonathan David Brooks</div>
         <p className="muted" style={{ margin: "8px 0 22px" }}>Your homebase. Sign in with a link — no password.</p>
-
-        {/* Temporary debug panel — remove once login works */}
-        <div style={{ background:"#1C1C23", border:"1px solid #2A2A33", borderRadius:10, padding:"12px 16px", marginBottom:18, width:"100%", textAlign:"left" }}>
-          <div style={{ fontSize:10, color:"#8C8A84", letterSpacing:2, marginBottom:8, textTransform:"uppercase" }}>Environment check</div>
-          <div style={{ fontFamily:"monospace", fontSize:12, lineHeight:2 }}>
-            <div><span style={{ color: urlOk ? "#8FA67E" : "#C2453B" }}>{urlOk ? "✓" : "✗"}</span> VITE_SUPABASE_URL: <span style={{ color:"#E9E4D9" }}>{supabaseUrl ? supabaseUrl.slice(0,40)+"…" : "NOT SET"}</span></div>
-            <div><span style={{ color: keyOk ? "#8FA67E" : "#C2453B" }}>{keyOk ? "✓" : "✗"}</span> VITE_SUPABASE_ANON_KEY: <span style={{ color:"#E9E4D9" }}>{supabaseKey ? "eyJ…"+supabaseKey.slice(-6)+" ("+supabaseKey.length+" chars)" : "NOT SET"}</span></div>
-          </div>
-        </div>
 
         {sent ? (
           <p className="brief" style={{ textAlign: "center" }}>Check your email for a sign-in link, then return here.</p>
@@ -1098,6 +1233,34 @@ const CSS = `
 .corr-bar { position:absolute; top:0; height:8px; border-radius:4px; transition:width .6s; }
 .corr-center { position:absolute; left:50%; top:-3px; width:1px; height:14px; background:${C.dim}; }
 .corr-val { font-family:'JetBrains Mono',monospace; font-size:14px; text-align:right; }
+
+/* ambient glyph layer */
+.ambient { position:fixed; inset:0; pointer-events:none; z-index:0; overflow:hidden; }
+.topbar, .account-bar, .demo-bar, .main, .signin { position:relative; z-index:1; }
+.amb-glyph { position:absolute; fill:none; stroke-width:1.4; opacity:0;
+  filter:drop-shadow(0 0 7px currentColor);
+  stroke-dasharray:420; stroke-dashoffset:420;
+  animation-name:glyphlife; animation-timing-function:ease-in-out; animation-fill-mode:forwards; }
+.amb-glyph text { fill:none; stroke-width:1; }
+@keyframes glyphlife {
+  0% { opacity:0; stroke-dashoffset:420; transform:translateY(8px); }
+  18% { opacity:.15; }
+  55% { stroke-dashoffset:0; opacity:.15; }
+  80% { opacity:.11; }
+  100% { opacity:0; stroke-dashoffset:0; transform:translateY(-12px); }
+}
+.amb-quote { position:absolute; font-family:Fraunces,serif; font-style:italic; font-size:15px; opacity:0; max-width:260px; line-height:1.5;
+  text-shadow:0 0 14px currentColor; animation-name:quotelife; animation-timing-function:ease-in-out; animation-fill-mode:forwards; }
+@keyframes quotelife { 0% { opacity:0; transform:translateY(8px); } 20% { opacity:.24; } 75% { opacity:.18; } 100% { opacity:0; transform:translateY(-8px); } }
+
+/* quick log */
+.quicklog { display:flex; align-items:center; gap:7px; flex-wrap:wrap; background:${C.panel}; border:1px solid ${C.border}; border-radius:12px; padding:10px 14px; margin-bottom:16px; }
+.quicklog-title { font-size:10.5px; color:${C.ash}; letter-spacing:1.5px; text-transform:uppercase; margin-right:4px; }
+.qchip { display:inline-flex; align-items:center; gap:6px; background:${C.panel2}; border:1px solid ${C.border}; color:${C.bone}; padding:6px 11px; border-radius:18px; font-size:12px; font-weight:500; transition:.15s; }
+.qchip:hover { border-color:${C.ash}; transform:translateY(-1px); }
+.qchip:active { transform:scale(.95); }
+.qflash { font-size:12px; color:${C.sage}; }
+.vital-delta { font-size:10.5px; margin-left:6px; font-family:'JetBrains Mono',monospace; }
 
 @media (max-width:760px) {
   .vitals { grid-template-columns:repeat(3,1fr); }
