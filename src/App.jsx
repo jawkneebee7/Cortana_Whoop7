@@ -6,9 +6,10 @@ import {
 import {
   Activity, Heart, Moon, Flame, Wind, Plus, FlaskConical, Sparkles,
   Trash2, X, Coffee, Wine, Dumbbell, Brain, Sun, Check,
-  TrendingUp, BookOpen, Loader, PenLine,
+  TrendingUp, BookOpen, Loader, PenLine, Orbit,
 } from "lucide-react";
 import { store } from "./lib/store";
+import Universe from "./Universe.jsx";
 import { supabase, hasSupabase } from "./lib/supabase";
 
 /* ------------------------------------------------------------------ */
@@ -923,6 +924,7 @@ const TABS = [
   { k: "journal", label: "Journal", icon: PenLine },
   { k: "exp", label: "Experiments", icon: FlaskConical },
   { k: "trends", label: "Trends", icon: TrendingUp },
+  { k: "universe", label: "Universe", icon: Orbit },
 ];
 
 function MainApp() {
@@ -980,6 +982,7 @@ function MainApp() {
         {tab === "journal" && <Journal days={days} setDays={setDays} settings={settings} />}
         {tab === "exp" && <Experiments days={days} experiments={experiments} setExperiments={setExperiments} />}
         {tab === "trends" && <Trends days={days} />}
+        {tab === "universe" && <Universe days={days} />}
       </main>
     </div>
   );
